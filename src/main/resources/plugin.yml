@@ -1,0 +1,7 @@
+main: ${project.main}
+name: ${project.name}
+author: ${project.authors}
+version: ${project.version}
+commands:
+  reciperfection:
+    aliases: [rp]
