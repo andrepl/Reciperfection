@@ -1,6 +1,7 @@
 package com.norcode.bukkit.reciperfection;
 
 import com.norcode.bukkit.reciperfection.command.ReciperfectionCommand;
+import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -16,10 +17,13 @@ import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ShapelessRecipe;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 public class Reciperfection extends JavaPlugin implements Listener, InventoryHolder {
@@ -39,6 +43,7 @@ public class Reciperfection extends JavaPlugin implements Listener, InventoryHol
 	}
 
 	TreeMap<String, Recipe> loadedRecipes = new TreeMap<String, Recipe>();
+	List<ItemStack> recipesToRemove = new ArrayList<ItemStack>();
 
 	static final List<Integer> GRID_SLOTS = Arrays.asList(new Integer[]{0, 1, 2, 9, 10, 11, 18, 19, 20});
 	static final int RESULT_SLOT = 13;
@@ -74,6 +79,42 @@ public class Reciperfection extends JavaPlugin implements Listener, InventoryHol
 				}
 			}
 		}
+	}
+
+	boolean recipesEqual(Recipe r1, Recipe r2) {
+		if (r1 instanceof ShapelessRecipe && r2 instanceof ShapelessRecipe) {
+			if (r1.getResult().equals(r2.getResult())) {
+				Set<ItemStack> r1Ing = new HashSet<ItemStack>(((ShapelessRecipe) r1).getIngredientList());
+				Set<ItemStack> r2Ing = new HashSet<ItemStack>(((ShapelessRecipe) r1).getIngredientList());
+				return (r1Ing.equals(r2Ing));
+			}
+		} else if (r1 instanceof ShapedRecipe && r2 instanceof ShapedRecipe) {
+			if (r1.getResult().equals(r2.getResult())) {
+				String[] s1 = ((ShapedRecipe) r1).getShape();
+				String[] s2 = ((ShapedRecipe) r2).getShape();
+				Map<Character, ItemStack> m1 = ((ShapedRecipe) r1).getIngredientMap();
+				Map<Character, ItemStack> m2 = ((ShapedRecipe) r2).getIngredientMap();
+				if (s1.length == s2.length && s1[0].length() == s2[0].length()) {
+					for (int y=0;y<s1.length;y++) {
+						for (int x=0;x<s1[0].length();x++) {
+							ItemStack i1 = m1.get(s1[y].charAt(x));
+							if (i1 == null) {
+								i1 = new ItemStack(Material.AIR);
+							}
+							ItemStack i2 = m2.get(s2[y].charAt(x));
+							if (i2 == null) {
+								i2 = new ItemStack(Material.AIR);
+							}
+							if (!i1.equals(i2)) {
+								return false;
+							}
+						}
+					}
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	void closeView(InventoryView view) {
@@ -114,15 +155,29 @@ public class Reciperfection extends JavaPlugin implements Listener, InventoryHol
 
 	public void loadRecipes() {
 		// if we have any recipes loaded, remove them.
-		if (loadedRecipes.size() > 0) {
-			Iterator<Recipe> recipeIterator = getServer().recipeIterator();
-			while (recipeIterator.hasNext()) {
-				Recipe r = recipeIterator.next();
-				if (loadedRecipes.containsValue(r)) {
+		// Also Remove any vanilla recipes that should be removed
+		recipesToRemove = (List<ItemStack>) getConfig().getList("remove");
+		if (recipesToRemove == null) {
+			recipesToRemove = new ArrayList<ItemStack>();
+		}
+		Iterator<Recipe> recipeIterator = getServer().recipeIterator();
+		while (recipeIterator.hasNext()) {
+			Recipe r = recipeIterator.next();
+			boolean removed = false;
+			for (Recipe r2: loadedRecipes.values()) {
+				if (recipesEqual(r, r2)) {
+					debug("Removing recipe for " + r.getResult());
 					recipeIterator.remove();
+					removed = true;
+					break;
 				}
 			}
+			if (!removed && recipesToRemove.contains(r.getResult())) {
+				debug("Removing recipe for " + r.getResult());
+				recipeIterator.remove();
+			}
 		}
+
 		loadedRecipes.clear();
 		// add all our recipes.
 		ConfigurationSection cfg = getConfig().getConfigurationSection("recipes");
@@ -143,6 +198,7 @@ public class Reciperfection extends JavaPlugin implements Listener, InventoryHol
 						((ShapelessRecipe) r).addIngredient(ingredient.getData());
 					}
 				}
+				debug("Adding recipe for " + r.getResult());
 				loadedRecipes.put(key, r);
 				getServer().addRecipe(r);
 			}
@@ -188,9 +244,19 @@ public class Reciperfection extends JavaPlugin implements Listener, InventoryHol
 
 	public void deleteRecipe(String k) {
 		debug("Deleting recipe: " + k);
-		Iterator<Recipe> recipes = getServer().recipeIterator();
 		Recipe recipe = loadedRecipes.remove(k);
+		Iterator<Recipe> recipes = getServer().recipeIterator();
+		while (recipes.hasNext()) {
+			Recipe r = recipes.next();
+			if (recipesEqual(r, recipe)) {
+				recipes.remove();
+			}
+		}
 		getConfig().set("recipes." + k, null);
 		saveConfig();
+	}
+
+	public List<ItemStack> getRecipesToRemove() {
+		return recipesToRemove;
 	}
 }

@@ -12,6 +12,7 @@ public class ReciperfectionCommand extends BaseCommand {
 		registerSubcommand(new CreateRecipeCommand(plugin));
 		registerSubcommand(new ReloadCommand(plugin));
 		registerSubcommand(new DeleteRecipeCommand(plugin));
+		registerSubcommand(new DeleteVanillaRecipeCommand(plugin));
 		registerSubcommand(new ListRecipesCommand(plugin));
 	}
 

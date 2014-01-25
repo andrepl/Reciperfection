@@ -9,7 +9,8 @@ import java.util.List;
 
 public class DeleteRecipeCommand extends BaseCommand {
 	public DeleteRecipeCommand(Reciperfection plugin) {
-		super(plugin, "delete", new String[] {"remove"}, "reciperfection.command.delete", new String[] {"Delete a custom recipe", "", "/reciperfection delete <recipe-name>"});
+		super(plugin, "deletecustom", new String[] {"removecustom"}, "reciperfection.command.delete",
+				new String[] {"Delete a custom recipe", "", "/reciperfection delete <recipe-name>"});
 	}
 
 	@Override
@@ -28,8 +29,7 @@ public class DeleteRecipeCommand extends BaseCommand {
 			}
 		}
 		if (deleted != null) {
-			commandSender.sendMessage("Recipe `" + deleted + "` successfully deleted.  " +
-					"You must run `/reciperfection reload` for the changes to take effect");
+			commandSender.sendMessage("Recipe `" + deleted + "` successfully deleted.");
 		} else {
 			throw new CommandError("Unknown recipe: " + name);
 		}
